@@ -71,12 +71,14 @@ def get_models():
     conf.n_speaker = config.speaker_n_labels
 
     style_encoder = StyleEncoder(config)
-    model_CKPT = torch.load(style_encoder_checkpoint_path, map_location="cpu")
+    model_CKPT = torch.load(style_encoder_checkpoint_path, map_location=torch.device("cuda"))
     model_ckpt = {}
     for key, value in model_CKPT['model'].items():
         new_key = key[7:]
         model_ckpt[new_key] = value
     style_encoder.load_state_dict(model_ckpt, strict=False)
+    style_encoder.eval()
+    style_encoder = style_encoder.cuda()
     generator = JETSGenerator(conf).to(DEVICE)
 
     model_CKPT = torch.load(am_checkpoint_path, map_location=DEVICE)
@@ -94,17 +96,26 @@ def get_models():
     return (style_encoder, generator, tokenizer, token2id, speaker2id)
 
 def get_style_embedding(prompt, tokenizer, style_encoder):
+    start_time = time.time()
     prompt = tokenizer([prompt], return_tensors="pt")
-    input_ids = prompt["input_ids"]
-    token_type_ids = prompt["token_type_ids"]
-    attention_mask = prompt["attention_mask"]
+
+    input_ids = prompt["input_ids"].to('cuda')
+    token_type_ids = prompt["token_type_ids"].to('cuda')
+    attention_mask = prompt["attention_mask"].to('cuda')
+
     with torch.no_grad():
+        start_time = time.time()
         output = style_encoder(
             input_ids=input_ids,
             token_type_ids=token_type_ids,
             attention_mask=attention_mask,
         )
+        # print(f"Style encoder inference took {time.time() - start_time:.4f} seconds")
+
+    start_time = time.time()
     style_embedding = output["pooled_output"].cpu().squeeze().numpy()
+    # print(f"Converting output to numpy took {time.time() - start_time:.4f} seconds")
+
     return style_embedding
 
 def emotivoice_tts(text, prompt, content, speaker, models):
@@ -155,7 +166,7 @@ def emotivoice_tts(text, prompt, content, speaker, models):
     start_time = time.time()
     audio = infer_output["wav_predictions"].squeeze() * MAX_WAV_VALUE
     audio = audio.cpu().numpy().astype('int16')
-    print(f"Time taken for processing audio output: {time.time() - start_time:.4f} seconds")
+    # print(f"Time taken for processing audio output: {time.time() - start_time:.4f} seconds")
 
     return audio
 
@@ -176,7 +187,7 @@ g2p = G2p()
 def get_audio(input_text):
     start_time = time.time()
     phonemized_text = g2p_cn_en(input_text, g2p, lexicon)
-    print('phonemized_text took', time.time() - start_time)
+    # print('phonemized_text took', time.time() - start_time)
 
     start_time = time.time()
     np_audio = emotivoice_tts(phonemized_text, '', input_text, '1088', models)
@@ -191,7 +202,9 @@ with open('examples.txt', 'r') as f:
 
 times = []
 from tqdm import tqdm
-for sentence in tqdm(sentences):
+print('')
+for sentence in sentences:
+    print()
     start_time = time.time()
     np_audio = get_audio(sentence)
     end_time = time.time()
