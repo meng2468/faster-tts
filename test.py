@@ -23,9 +23,12 @@ from pydub import AudioSegment
 from yacs import config as CONFIG
 from config import Config
 from collections import defaultdict
+import time
+
+from torch.profiler import profile, record_function, ProfilerActivity
 
 LOGGER = logging.getLogger(__name__)
-ROOT_DIR = "/root/EmotiVoice/"
+ROOT_DIR = "."
 
 DEFAULTS = {
 }
@@ -154,11 +157,15 @@ lexicon = read_lexicon(f"{ROOT_DIR}/lexicon/librispeech-lexicon.txt")
 g2p = G2p()
 
 def get_audio(input_text):
-    phonemized_text = g2p_cn_en(input_text, g2p, lexicon)
-    np_audio = emotivoice_tts(phonemized_text, '', input_text, '1088', models)
+    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
+        with record_function("model_inference"):
+            phonemized_text = g2p_cn_en(input_text, g2p, lexicon)
+            np_audio = emotivoice_tts(phonemized_text, '', input_text, '1088', models)
+            
+    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+    prof.export_chrome_trace("trace.json")
+            
     return np_audio
-
-import time
 
 start_time = time.time()
 np_audio = get_audio('Your mother is looking fantastic')
