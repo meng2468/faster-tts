@@ -12,6 +12,9 @@ try:
 except:
     from torch.nn.utils import weight_norm
 from torch.nn.utils import remove_weight_norm, spectral_norm
+from torch.nn.utils.parametrize import remove_parametrizations
+
+from torch.profiler import profile, record_function, ProfilerActivity
 
 LRELU_SLOPE = 0.1
 
@@ -27,6 +30,7 @@ class ResBlock1(torch.nn.Module):
     def __init__(self, h, channels, kernel_size=3, dilation=(1, 3, 5)):
         super(ResBlock1, self).__init__()
         self.h = h
+        """
         self.convs1 = nn.ModuleList([
             weight_norm(Conv1d(channels, channels, kernel_size, 1, dilation=dilation[0],
                                padding=get_padding(kernel_size, dilation[0]))),
@@ -34,6 +38,15 @@ class ResBlock1(torch.nn.Module):
                                padding=get_padding(kernel_size, dilation[1]))),
             weight_norm(Conv1d(channels, channels, kernel_size, 1, dilation=dilation[2],
                                padding=get_padding(kernel_size, dilation[2])))
+        ])
+        """
+        self.convs1 = nn.ModuleList([
+            weight_norm(Conv1d(channels, channels, kernel_size, 1, dilation=1,
+                               padding=get_padding(kernel_size, 1))),
+            weight_norm(Conv1d(channels, channels, kernel_size, 1, dilation=1,
+                               padding=get_padding(kernel_size, 1))),
+            weight_norm(Conv1d(channels, channels, kernel_size, 1, dilation=1,
+                               padding=get_padding(kernel_size, 1)))
         ])
         self.convs1.apply(init_weights)
 
@@ -48,19 +61,37 @@ class ResBlock1(torch.nn.Module):
         self.convs2.apply(init_weights)
 
     def forward(self, x):
+        """
         for c1, c2 in zip(self.convs1, self.convs2):
-            xt = F.leaky_relu(x, LRELU_SLOPE)
-            xt = c1(xt)
-            xt = F.leaky_relu(xt, LRELU_SLOPE)
-            xt = c2(xt)
-            x = xt + x
+            with record_function("zip"):
+                with record_function("leaky_relu"):
+                    xt = F.leaky_relu(x, LRELU_SLOPE)
+                with record_function("c1"):
+                    xt = c1(xt)
+                with record_function("leaky_relu"):
+                    xt = F.leaky_relu(xt, LRELU_SLOPE)
+                with record_function("c2"):
+                    xt = c2(xt)
+                x = xt + x
+        """
+        for i in range(3):
+            with record_function("zip"):
+                with record_function("leaky_relu"):
+                    xt = F.leaky_relu(x, LRELU_SLOPE)
+                with record_function("c1"):
+                    xt = self.convs1[i](xt)
+                with record_function("leaky_relu"):
+                    xt = F.leaky_relu(xt, LRELU_SLOPE)
+                with record_function("c2"):
+                    xt = self.convs2[i](xt)
+                x = xt + x
         return x
 
     def remove_weight_norm(self):
         for l in self.convs1:
-            remove_weight_norm(l)
+            remove_parametrizations(l, "weight")
         for l in self.convs2:
-            remove_weight_norm(l)
+            remove_parametrizations(l, "weight")
 
 
 class ResBlock2(torch.nn.Module):
@@ -86,7 +117,7 @@ class ResBlock2(torch.nn.Module):
         for l in self.convs:
             remove_weight_norm(l)
 
-@torch.compile()
+#@torch.compile()
 class Generator(torch.nn.Module):
     def __init__(self, h):
         super(Generator, self).__init__()
@@ -113,31 +144,34 @@ class Generator(torch.nn.Module):
         self.conv_post.apply(init_weights)
 
     def forward(self, x):
-        x = self.conv_pre(x)
-        for i in range(self.num_upsamples):
-            x = F.leaky_relu(x, LRELU_SLOPE)
-            x = self.ups[i](x)
-            xs = None
-            for j in range(self.num_kernels):
-                if xs is None:
-                    xs = self.resblocks[i*self.num_kernels+j](x)
-                else:
-                    xs += self.resblocks[i*self.num_kernels+j](x)
-            x = xs / self.num_kernels
-        x = F.leaky_relu(x)
-        x = self.conv_post(x)
-        x = torch.tanh(x)
+        with record_function("forward"):
+            x = self.conv_pre(x)
+            for i in range(self.num_upsamples):
+                with record_function(f"upsample_{i}"):
+                    x = F.leaky_relu(x, LRELU_SLOPE)
+                    x = self.ups[i](x)
+                    xs = None
+                    for j in range(self.num_kernels):
+                        with record_function(f"resblock_{i}"):
+                            if xs is None:
+                                xs = self.resblocks[i*self.num_kernels+j](x)
+                            else:
+                                xs += self.resblocks[i*self.num_kernels+j](x)
+                    x = xs / self.num_kernels
+            x = F.leaky_relu(x)
+            x = self.conv_post(x)
+            x = torch.tanh(x)
 
         return x
 
     def remove_weight_norm(self):
         print('Removing weight norm...')
         for l in self.ups:
-            remove_weight_norm(l)
+            remove_parametrizations(l, "weight")
         for l in self.resblocks:
             l.remove_weight_norm()
-        remove_weight_norm(self.conv_pre)
-        remove_weight_norm(self.conv_post)
+        remove_parametrizations(self.conv_pre, "weight")
+        remove_parametrizations(self.conv_post, "weight")
 
 
 class DiscriminatorP(torch.nn.Module):

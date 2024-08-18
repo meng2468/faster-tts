@@ -22,10 +22,16 @@ from yacs import config as CONFIG
 from config import Config
 from collections import defaultdict
 import time
+from torch.nn.utils import remove_weight_norm
 
 from torch.profiler import profile, record_function, ProfilerActivity
 
-torch.set_float32_matmul_precision('high')
+import torch
+import torch.nn as nn
+from torch.nn.utils import remove_weight_norm
+
+#torch.backends.cudnn.benchmark = True # IMPORTANT, changed look
+#torch.set_float32_matmul_precision('high')
 
 LOGGER = logging.getLogger(__name__)
 ROOT_DIR = "."
@@ -34,7 +40,6 @@ DEFAULTS = {
 }
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(DEVICE)
 config = Config()
 MAX_WAV_VALUE = 32768.0
 
@@ -85,16 +90,17 @@ def get_models():
 
     model_CKPT = torch.load(am_checkpoint_path, map_location=DEVICE)
     generator.load_state_dict(model_CKPT['generator'])
+    generator.generator.remove_weight_norm()
 
     #torch._dynamo.config.capture_scalar_outputs = True
     #generator = torch.compile(generator, fullgraph=True, dynamic=True)
     generator.eval()
     dummy_output = generator(
-        inputs_ling=torch.ones(1, 100, device="cuda").long(),
+        inputs_ling=torch.ones(1, 500, device="cuda").long(),
         inputs_style_embedding=torch.rand(1, 768, device="cuda"),
-        input_lengths=torch.tensor([100], device="cuda").long(),
+        input_lengths=torch.tensor([500], device="cuda").long(),
         inputs_content_embedding=torch.rand(1, 768, device="cuda"),
-        inputs_speaker=torch.tensor([0], device="cuda").long(),
+        inputs_speaker=torch.tensor([10], device="cuda").long(),
         alpha=1.0
     )
     print("Compiled model!")      
@@ -204,7 +210,7 @@ def get_audio(input_text):
     # print('phonemized_text took', time.time() - start_time)
 
     start_time = time.time()
-    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True, use_cuda=True, profile_memory=True) as prof:
+    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True, profile_memory=True, with_flops=True) as prof:
     	with record_function("model_inference"):
             np_audio = emotivoice_tts(phonemized_text, '', input_text, '1088', models)
     print('emotivoice_tts took', time.time() - start_time)
@@ -221,7 +227,7 @@ with open('examples.txt', 'r') as f:
 times = []
 from tqdm import tqdm
 print('')
-for sentence in sentences:
+for sentence in sentences[:1]:
     print()
     start_time = time.time()
     np_audio = get_audio(sentence)
