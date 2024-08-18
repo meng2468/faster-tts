@@ -210,17 +210,10 @@ class PositionalEncoding(torch.nn.Module):
         self.reverse = reverse
         self.xscale = math.sqrt(self.d_model)
         self.dropout = torch.nn.Dropout(p=dropout_rate)
-        self.pe = None
-        self.extend_pe(torch.tensor(0.0).expand(1, max_len))
 
-    def extend_pe(self, x):
-        
-        if self.pe is not None:
-            if self.pe.size(1) >= x.size(1):
-                if self.pe.dtype != x.dtype or self.pe.device != x.device:
-                    self.pe = self.pe.to(dtype=x.dtype, device=x.device)
-                return
-        pe = torch.zeros(x.size(1), self.d_model)
+    def get_pe(self, x):
+                
+        pe = torch.zeros(x.size(1), self.d_model, device=x.device, dtype=x.dtype)
         if self.reverse:
             position = torch.arange(
                 x.size(1) - 1, -1, -1.0, dtype=torch.float32
@@ -234,12 +227,14 @@ class PositionalEncoding(torch.nn.Module):
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)
-        self.pe = pe.to(device=x.device, dtype=x.dtype)
+        return pe
+
 
     def forward(self, x: torch.Tensor):
 
         self.extend_pe(x)
-        x = x * self.xscale + self.pe[:, : x.size(1)]
+        #x = x * self.xscale + self.pe[:, : x.size(1)]
+        x = x * self.xscale + self.get_pe(x)
         return self.dropout(x)
 
 
@@ -256,8 +251,7 @@ class ScaledPositionalEncoding(PositionalEncoding):
 
     def forward(self, x):
 
-        self.extend_pe(x)
-        x = x + self.alpha * self.pe[:, : x.size(1)]
+        x = x + self.alpha * self.get_pe(x)
         return self.dropout(x)
 
 class Encoder(torch.nn.Module):

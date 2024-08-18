@@ -25,6 +25,8 @@ import time
 
 from torch.profiler import profile, record_function, ProfilerActivity
 
+torch.set_float32_matmul_precision('high')
+
 LOGGER = logging.getLogger(__name__)
 ROOT_DIR = "."
 
@@ -81,7 +83,19 @@ def get_models():
 
     model_CKPT = torch.load(am_checkpoint_path, map_location=DEVICE)
     generator.load_state_dict(model_CKPT['generator'])
+
+    #torch._dynamo.config.capture_scalar_outputs = True
+    #generator = torch.compile(generator, fullgraph=True, dynamic=True)
     generator.eval()
+    dummy_output = generator(
+        inputs_ling=torch.ones(1, 100, device="cuda").long(),
+        inputs_style_embedding=torch.rand(1, 768, device="cuda"),
+        input_lengths=torch.tensor([100], device="cuda").long(),
+        inputs_content_embedding=torch.rand(1, 768, device="cuda"),
+        inputs_speaker=torch.tensor([0], device="cuda").long(),
+        alpha=1.0
+    )
+    print("Compiled model!")      
 
     tokenizer = AutoTokenizer.from_pretrained(config.bert_path)
 
@@ -140,7 +154,7 @@ def emotivoice_tts(text, prompt, content, speaker, models):
     speaker = torch.from_numpy(np.array([speaker])).to(DEVICE)
     # print(f"Time taken for creating content embedding and speaker tensor: {time.time() - start_time:.4f} seconds")
 
-    with torch.no_grad():
+    with torch.inference_mode():
         start_time = time.time()
         infer_output = generator(
             inputs_ling=sequence,
@@ -202,12 +216,12 @@ for sentence in tqdm(sentences):
 
 print(np.array(times).mean())
 
-# wav_buffer = io.BytesIO()
-# sf.write(file=wav_buffer, data=np_audio,
-#          samplerate=16000, format='WAV')
-# buffer = wav_buffer
+wav_buffer = io.BytesIO()
+sf.write(file=wav_buffer, data=np_audio,
+          samplerate=16000, format='WAV')
+buffer = wav_buffer
 
-# # Generate a unique filename for the audio file
-# file_path = 'audio.wav'
+# Generate a unique filename for the audio file
+file_path = 'audio.wav'
 
-# save_audio_file(wav_buffer.getvalue(), file_path)
+save_audio_file(wav_buffer.getvalue(), file_path)

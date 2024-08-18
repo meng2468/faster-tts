@@ -86,7 +86,7 @@ class ResBlock2(torch.nn.Module):
         for l in self.convs:
             remove_weight_norm(l)
 
-
+@torch.compile()
 class Generator(torch.nn.Module):
     def __init__(self, h):
         super(Generator, self).__init__()

@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from numba import jit
 from scipy.stats import betabinom
-
+from torch import _check_is_size
 
 class AlignmentModule(nn.Module):
 
@@ -178,33 +178,34 @@ class GaussianUpsampling(torch.nn.Module):
         super().__init__()
         self.delta = delta
     def forward(self, hs, ds, h_masks=None, d_masks=None, alpha=1.0):
-
-
+        
         ds = ds * alpha
 
         B = ds.size(0)
         device = ds.device
-        if ds.sum() == 0:
+        
+        #if ds.sum() == 0:
             # NOTE(kan-bayashi): This case must not be happened in teacher forcing.
             #   It will be happened in inference with a bad duration predictor.
             #   So we do not need to care the padded sequence case here.
-            ds[ds.sum(dim=1).eq(0)] = 1
+        #    ds[ds.sum(dim=1).eq(0)] = 1
             
-        if h_masks is None:
-            mel_lenghs = torch.sum(ds, dim=-1).int() # lengths = [5, 3, 2]
-            T_feats = mel_lenghs.max().item() # T_feats = 5
-        else:
-            T_feats = h_masks.size(-1)
-        t = torch.arange(0, T_feats).unsqueeze(0).repeat(B,1).to(device).float()
-        if h_masks is not None:
-            t = t * h_masks.float()
+        #if h_masks is None:
+        mel_lenghs = torch.sum(ds, dim=-1).int() # lengths = [5, 3, 2]
+        T_feats = mel_lenghs.max()#.item() # T_feats = 5
+        #else:
+        #    T_feats = h_masks.size(-1)            
+        
+        t = torch.arange(0, T_feats, device=device).unsqueeze(0).repeat(B,1).float()
+        #if h_masks is not None:
+        #    t = t * h_masks.float()
 
         c = ds.cumsum(dim=-1) - ds/2
 
         energy = -1 * self.delta * (t.unsqueeze(-1) - c.unsqueeze(1)) ** 2
 
-        if d_masks is not None:
-            energy = energy.masked_fill(~(d_masks.unsqueeze(1).repeat(1,T_feats,1)), -float("inf"))
+        #if d_masks is not None:
+        #    energy = energy.masked_fill(~(d_masks.unsqueeze(1).repeat(1,T_feats,1)), -float("inf"))
 
         p_attn = torch.softmax(energy, dim=2) # (B, T_feats, T_text)
         hs = torch.matmul(p_attn, hs)
