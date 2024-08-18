@@ -18,7 +18,6 @@ from models.prompt_tts_modified.simbert import StyleEncoder
 from transformers import AutoTokenizer
 import numpy as np
 import soundfile as sf
-import pyrubberband as pyrb
 from pydub import AudioSegment
 from yacs import config as CONFIG
 from config import Config
@@ -183,7 +182,7 @@ sf.write(file=wav_buffer, data=np_audio,
 buffer = wav_buffer
 
 # Generate a unique filename for the audio file
-file_path = 'test.wav'
+file_path = 'audio.wav'
 
 # Specify the folder path where you want to save the audio file
 
