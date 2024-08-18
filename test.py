@@ -1,6 +1,5 @@
 import sys
 
-import numpy as np
 import soundfile as sf
 import logging
 import os
@@ -110,7 +109,7 @@ def get_style_embedding(prompt, tokenizer, style_encoder):
 
 def emotivoice_tts(text, prompt, content, speaker, models):
     (style_encoder, generator, tokenizer, token2id, speaker2id) = models
-    print(' ')
+    # print(' ')
     start_time = time.time()
     style_embedding = get_style_embedding(prompt, tokenizer, style_encoder)
     print(f"Time taken for getting style embedding: {time.time() - start_time:.4f} seconds")
@@ -121,25 +120,25 @@ def emotivoice_tts(text, prompt, content, speaker, models):
 
     start_time = time.time()
     speaker = speaker2id[speaker]
-    print(f"Time taken for getting speaker ID: {time.time() - start_time:.4f} seconds")
+    # print(f"Time taken for getting speaker ID: {time.time() - start_time:.4f} seconds")
 
     start_time = time.time()
     text_int = [token2id[ph] for ph in text.split()]
-    print(f"Time taken for converting text to integer tokens: {time.time() - start_time:.4f} seconds")
+    # print(f"Time taken for converting text to integer tokens: {time.time() - start_time:.4f} seconds")
 
     start_time = time.time()
     sequence = torch.from_numpy(np.array(text_int)).to(DEVICE).long().unsqueeze(0)
-    print(f"Time taken for creating sequence tensor: {time.time() - start_time:.4f} seconds")
+    # print(f"Time taken for creating sequence tensor: {time.time() - start_time:.4f} seconds")
 
     start_time = time.time()
     sequence_len = torch.from_numpy(np.array([len(text_int)])).to(DEVICE)
     style_embedding = torch.from_numpy(style_embedding).to(DEVICE).unsqueeze(0)
-    print(f"Time taken for creating sequence length tensor and moving style embedding to device: {time.time() - start_time:.4f} seconds")
+    # print(f"Time taken for creating sequence length tensor and moving style embedding to device: {time.time() - start_time:.4f} seconds")
 
     start_time = time.time()
     content_embedding = torch.from_numpy(content_embedding).to(DEVICE).unsqueeze(0)
     speaker = torch.from_numpy(np.array([speaker])).to(DEVICE)
-    print(f"Time taken for creating content embedding and speaker tensor: {time.time() - start_time:.4f} seconds")
+    # print(f"Time taken for creating content embedding and speaker tensor: {time.time() - start_time:.4f} seconds")
 
     with torch.no_grad():
         start_time = time.time()
@@ -187,45 +186,28 @@ def get_audio(input_text):
 
 get_audio('asdfasd mad发多少l')
 
-print('*'*30)
-print('Starting initial english gen')
-start_time = time.time()
-np_audio = get_audio('Your mother is looking fantastic')
-end_time = time.time()
-print(f"get_audio took {end_time - start_time:.2f} seconds")
-print('')
+with open('examples.txt', 'r') as f:
+    sentences = f.readlines()
 
-print('Starting chinese genn')
-start_time = time.time()
-np_audio = get_audio('你知不知道我妈的身份卡上的疯狂加拉屎的福利开始打架啊离开')
-end_time = time.time()
-print(f"get_audio took {end_time - start_time:.2f} seconds")
+times = []
+from tqdm import tqdm
+for sentence in tqdm(sentences):
+    start_time = time.time()
+    np_audio = get_audio(sentence)
+    end_time = time.time()
 
-print('Starting english genn')
-start_time = time.time()
-np_audio = get_audio('say hi to your mother for me, and pass me a pretzel while youre at it')
-end_time = time.time()
-print(f"get_audio took {end_time - start_time:.2f} seconds")
+    time_taken = end_time - start_time
+    times.append(time_taken)
+    print(f"Get_audio took {time_taken:.2f} seconds")
 
-print('Starting chinese genn')
-start_time = time.time()
-np_audio = get_audio('麻们卡里莫夫的时刻烦卡时间的法兰克福加萨帝解放军发多少')
-end_time = time.time()
-print(f"get_audio took {end_time - start_time:.2f} seconds")
+print(np.array(times).mean())
 
-wav_buffer = io.BytesIO()
-sf.write(file=wav_buffer, data=np_audio,
-         samplerate=16000, format='WAV')
-buffer = wav_buffer
+# wav_buffer = io.BytesIO()
+# sf.write(file=wav_buffer, data=np_audio,
+#          samplerate=16000, format='WAV')
+# buffer = wav_buffer
 
-# Generate a unique filename for the audio file
-file_path = 'audio.wav'
+# # Generate a unique filename for the audio file
+# file_path = 'audio.wav'
 
-# Specify the folder path where you want to save the audio file
-
-# Create the full file path by joining the folder path and filename
-
-# Save the audio file to the specified file path
-save_audio_file(wav_buffer.getvalue(), file_path)
-
-
+# save_audio_file(wav_buffer.getvalue(), file_path)
