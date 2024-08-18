@@ -72,7 +72,7 @@ def get_models():
     conf.n_speaker = config.speaker_n_labels
 
     style_encoder = StyleEncoder(config)
-    model_CKPT = torch.load(style_encoder_checkpoint_path, map_location="cpu")
+    model_CKPT = torch.load(style_encoder_checkpoint_path, map_location="cuda")
     model_ckpt = {}
     for key, value in model_CKPT['model'].items():
         new_key = key[7:]
@@ -120,14 +120,15 @@ def emotivoice_tts(text, prompt, content, speaker, models):
 
     sequence = torch.from_numpy(np.array(text_int)).to(
         DEVICE).long().unsqueeze(0)
+
     sequence_len = torch.from_numpy(np.array([len(text_int)])).to(DEVICE)
     style_embedding = torch.from_numpy(style_embedding).to(DEVICE).unsqueeze(0)
+
     content_embedding = torch.from_numpy(
         content_embedding).to(DEVICE).unsqueeze(0)
     speaker = torch.from_numpy(np.array([speaker])).to(DEVICE)
 
     with torch.no_grad():
-
         infer_output = generator(
             inputs_ling=sequence,
             inputs_style_embedding=style_embedding,
@@ -156,25 +157,38 @@ lexicon = read_lexicon(f"{ROOT_DIR}/lexicon/librispeech-lexicon.txt")
 g2p = G2p()
 
 def get_audio(input_text):
-    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
-        with record_function("model_inference"):
-            phonemized_text = g2p_cn_en(input_text, g2p, lexicon)
-            np_audio = emotivoice_tts(phonemized_text, '', input_text, '1088', models)
-            
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
-    prof.export_chrome_trace("trace.json")
-            
+    start_time = time.time()
+    phonemized_text = g2p_cn_en(input_text, g2p, lexicon)
+    print('phonemized_text took', time.time() - start_time)
+
+    start_time = time.time()
+    np_audio = emotivoice_tts(phonemized_text, '', input_text, '1088', models)
+    print('emotivoice_tts took', time.time() - start_time)
+        
     return np_audio
 
 start_time = time.time()
 np_audio = get_audio('Your mother is looking fantastic')
 end_time = time.time()
 
-print(f"Audio generation took {end_time - start_time:.2f} seconds")
 
+print('Starting chinese genn')
 start_time = time.time()
 np_audio = get_audio('你知不知道我妈的身份卡上的疯狂加拉屎的福利开始打架啊离开')
 end_time = time.time()
+print(f"get_audio took {end_time - start_time:.2f} seconds")
+
+print('Starting english genn')
+start_time = time.time()
+np_audio = get_audio('say hi to your mother for me, and pass me a pretzel while youre at it')
+end_time = time.time()
+print(f"get_audio took {end_time - start_time:.2f} seconds")
+
+print('Starting chinese genn')
+start_time = time.time()
+np_audio = get_audio('你知不知道我妈的身份卡上的疯狂加拉屎的福利开始打架啊离开')
+end_time = time.time()
+print(f"get_audio took {end_time - start_time:.2f} seconds")
 
 wav_buffer = io.BytesIO()
 sf.write(file=wav_buffer, data=np_audio,
@@ -192,4 +206,3 @@ file_path = 'audio.wav'
 save_audio_file(wav_buffer.getvalue(), file_path)
 
 
-print(f"Audio generation took {end_time - start_time:.2f} seconds")
