@@ -169,7 +169,8 @@ def save_audio_file(data, filename):
         file.write(data)
 
 speakers = config.speakers
-models = get_models()
+(style_encoder, generator, tokenizer, token2id, speaker2id) = get_models()
+models = (style_encoder, generator, tokenizer, token2id, speaker2id)
 lexicon = read_lexicon(f"{ROOT_DIR}/lexicon/librispeech-lexicon.txt")
 g2p = G2p()
 
@@ -208,7 +209,7 @@ print(f"get_audio took {end_time - start_time:.2f} seconds")
 
 print('Starting chinese genn')
 start_time = time.time()
-np_audio = get_audio('你知不知道我妈的身份卡上的疯狂加拉屎的福利开始打架啊离开')
+np_audio = get_audio('麻们卡里莫夫的时刻烦卡时间的法兰克福加萨帝解放军发多少')
 end_time = time.time()
 print(f"get_audio took {end_time - start_time:.2f} seconds")
 
