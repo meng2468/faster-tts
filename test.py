@@ -72,7 +72,7 @@ def get_models():
     conf.n_speaker = config.speaker_n_labels
 
     style_encoder = StyleEncoder(config)
-    model_CKPT = torch.load(style_encoder_checkpoint_path, map_location="cuda")
+    model_CKPT = torch.load(style_encoder_checkpoint_path, map_location="cpu")
     model_ckpt = {}
     for key, value in model_CKPT['model'].items():
         new_key = key[7:]
@@ -110,25 +110,39 @@ def get_style_embedding(prompt, tokenizer, style_encoder):
 
 def emotivoice_tts(text, prompt, content, speaker, models):
     (style_encoder, generator, tokenizer, token2id, speaker2id) = models
-
+    print(' ')
+    start_time = time.time()
     style_embedding = get_style_embedding(prompt, tokenizer, style_encoder)
+    print(f"Time taken for getting style embedding: {time.time() - start_time:.4f} seconds")
+
+    start_time = time.time()
     content_embedding = get_style_embedding(content, tokenizer, style_encoder)
+    print(f"Time taken for getting content embedding: {time.time() - start_time:.4f} seconds")
 
+    start_time = time.time()
     speaker = speaker2id[speaker]
+    print(f"Time taken for getting speaker ID: {time.time() - start_time:.4f} seconds")
 
+    start_time = time.time()
     text_int = [token2id[ph] for ph in text.split()]
+    print(f"Time taken for converting text to integer tokens: {time.time() - start_time:.4f} seconds")
 
-    sequence = torch.from_numpy(np.array(text_int)).to(
-        DEVICE).long().unsqueeze(0)
+    start_time = time.time()
+    sequence = torch.from_numpy(np.array(text_int)).to(DEVICE).long().unsqueeze(0)
+    print(f"Time taken for creating sequence tensor: {time.time() - start_time:.4f} seconds")
 
+    start_time = time.time()
     sequence_len = torch.from_numpy(np.array([len(text_int)])).to(DEVICE)
     style_embedding = torch.from_numpy(style_embedding).to(DEVICE).unsqueeze(0)
+    print(f"Time taken for creating sequence length tensor and moving style embedding to device: {time.time() - start_time:.4f} seconds")
 
-    content_embedding = torch.from_numpy(
-        content_embedding).to(DEVICE).unsqueeze(0)
+    start_time = time.time()
+    content_embedding = torch.from_numpy(content_embedding).to(DEVICE).unsqueeze(0)
     speaker = torch.from_numpy(np.array([speaker])).to(DEVICE)
+    print(f"Time taken for creating content embedding and speaker tensor: {time.time() - start_time:.4f} seconds")
 
     with torch.no_grad():
+        start_time = time.time()
         infer_output = generator(
             inputs_ling=sequence,
             inputs_style_embedding=style_embedding,
@@ -137,9 +151,12 @@ def emotivoice_tts(text, prompt, content, speaker, models):
             inputs_speaker=speaker,
             alpha=1.0
         )
+        print(f"Time taken for generator inference: {time.time() - start_time:.4f} seconds")
 
+    start_time = time.time()
     audio = infer_output["wav_predictions"].squeeze() * MAX_WAV_VALUE
     audio = audio.cpu().numpy().astype('int16')
+    print(f"Time taken for processing audio output: {time.time() - start_time:.4f} seconds")
 
     return audio
 
@@ -167,10 +184,15 @@ def get_audio(input_text):
         
     return np_audio
 
+get_audio('asdfasd mad发多少l')
+
+print('*'*30)
+print('Starting initial english gen')
 start_time = time.time()
 np_audio = get_audio('Your mother is looking fantastic')
 end_time = time.time()
-
+print(f"get_audio took {end_time - start_time:.2f} seconds")
+print('')
 
 print('Starting chinese genn')
 start_time = time.time()
