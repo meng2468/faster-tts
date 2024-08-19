@@ -129,12 +129,9 @@ def get_style_embedding(prompt, tokenizer, style_encoder):
 
     return style_embedding
 
-def emotivoice_tts(text, prompt, content, speaker, models):
+def emotivoice_tts(text, style_embedding, content, speaker, models):
     (style_encoder, generator, tokenizer, token2id, speaker2id) = models
     # print(' ')
-    start_time = time.time()
-    style_embedding = get_style_embedding(prompt, tokenizer, style_encoder)
-    print(f"Time taken for getting style embedding: {time.time() - start_time:.4f} seconds")
 
     start_time = time.time()
     content_embedding = get_style_embedding(content, tokenizer, style_encoder)
@@ -196,13 +193,17 @@ models = (style_encoder, generator, tokenizer, token2id, speaker2id)
 lexicon = read_lexicon(f"{ROOT_DIR}/lexicon/librispeech-lexicon.txt")
 g2p = G2p()
 
+start_time = time.time()
+style_embedding = get_style_embedding('音量很高, 语速很慢', tokenizer, style_encoder)
+print(f"Time taken for getting style embedding: {time.time() - start_time:.4f} seconds")
+
 def get_audio(input_text):
     start_time = time.time()
     phonemized_text = g2p_cn_en(input_text, g2p, lexicon)
     # print('phonemized_text took', time.time() - start_time)
 
     start_time = time.time()
-    np_audio = emotivoice_tts(phonemized_text, '', input_text, '1088', models)
+    np_audio = emotivoice_tts(phonemized_text, style_embedding, input_text, '1088', models)
     # print('emotivoice_tts took', time.time() - start_time)
     # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
     # prof.export_chrome_trace("trace.json")
@@ -211,30 +212,31 @@ def get_audio(input_text):
 
 get_audio('asdfasd mad发多少l')
 
-with open('examples.txt', 'r') as f:
-    sentences = f.readlines()
+if __name__ == '__main__':
+    with open('examples.txt', 'r') as f:
+        sentences = f.readlines()
 
-times = []
-from tqdm import tqdm
-print('')
-for sentence in sentences:
-    print()
-    start_time = time.time()
-    np_audio = get_audio(sentence)
-    end_time = time.time()
+    times = []
+    from tqdm import tqdm
+    print('')
+    for sentence in sentences:
+        print()
+        start_time = time.time()
+        np_audio = get_audio(sentence)
+        end_time = time.time()
 
-    time_taken = end_time - start_time
-    times.append(time_taken)
-    print(f"Get_audio took {time_taken:.2f} seconds")
+        time_taken = end_time - start_time
+        times.append(time_taken)
+        print(f"Get_audio took {time_taken:.2f} seconds")
 
-print(np.array(times).mean())
+    print(np.array(times).mean())
 
-wav_buffer = io.BytesIO()
-sf.write(file=wav_buffer, data=np_audio,
-          samplerate=16000, format='WAV')
-buffer = wav_buffer
+    wav_buffer = io.BytesIO()
+    sf.write(file=wav_buffer, data=np_audio,
+            samplerate=16000, format='WAV')
+    buffer = wav_buffer
 
-# Generate a unique filename for the audio file
-file_path = 'audio.wav'
+    # Generate a unique filename for the audio file
+    file_path = 'audio.wav'
 
-save_audio_file(wav_buffer.getvalue(), file_path)
+    save_audio_file(wav_buffer.getvalue(), file_path)
