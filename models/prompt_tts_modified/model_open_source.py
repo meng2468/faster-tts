@@ -100,11 +100,10 @@ class PromptTTS(nn.Module):
         initialize(self, "xavier_uniform")
 
     # @torch.compile
-    def forward(self, inputs_ling, input_lengths, inputs_speaker, inputs_style_embedding , inputs_content_embedding, alpha=1.0):
-        
+    def forward(self, inputs_ling, src_mask, input_lengths, inputs_speaker, inputs_style_embedding , inputs_content_embedding, alpha=1.0):
         B = inputs_ling.size(0)
         T = inputs_ling.size(1)
-        src_mask = torch.zeros_like(inputs_ling, device="cuda").bool()
+
         token_embed = self.src_word_emb(inputs_ling)
         x, _ = self.encoder(token_embed, ~src_mask.unsqueeze(-2))
         speaker_embedding = self.spk_tokenizer(inputs_speaker)

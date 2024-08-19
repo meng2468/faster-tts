@@ -175,9 +175,10 @@ def emotivoice_tts(text, prompt, content, speaker, models):
         # print(f"Time taken for Jets inference: {time.time() - start_time:.4f} seconds")
 
     start_time = time.time()
-    audio = infer_output["wav_predictions"].squeeze() * MAX_WAV_VALUE
+    # audio = (infer_output["wav_predictions"].squeeze() * MAX_WAV_VALUE).to(torch.int16).cpu().numpy()
+    audio = infer_output['wav_predictions'].squeeze() * MAX_WAV_VALUE
     audio = audio.cpu().numpy().astype('int16')
-    # print(f"Time taken for processing audio output: {time.time() - start_time:.4f} seconds")
+    print(f"Time taken for processing audio output: {time.time() - start_time:.4f} seconds")
 
     return audio
 
