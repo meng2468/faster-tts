@@ -201,12 +201,10 @@ def get_audio(input_text):
     # print('phonemized_text took', time.time() - start_time)
 
     start_time = time.time()
-    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True, use_cuda=True, profile_memory=True) as prof:
-    	with record_function("model_inference"):
-            np_audio = emotivoice_tts(phonemized_text, '', input_text, '1088', models)
+    np_audio = emotivoice_tts(phonemized_text, '', input_text, '1088', models)
     print('emotivoice_tts took', time.time() - start_time)
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
-    prof.export_chrome_trace("trace.json")
+    # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+    # prof.export_chrome_trace("trace.json")
 
     return np_audio
 
