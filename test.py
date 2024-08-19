@@ -86,15 +86,15 @@ def get_models():
     #torch._dynamo.config.capture_scalar_outputs = True
     #generator = torch.compile(generator, fullgraph=True, dynamic=True)
     generator.eval()
-    dummy_output = generator(
-        inputs_ling=torch.ones(1, 100, device="cuda").long(),
-        inputs_style_embedding=torch.rand(1, 768, device="cuda"),
-        input_lengths=torch.tensor([100], device="cuda").long(),
-        inputs_content_embedding=torch.rand(1, 768, device="cuda"),
-        inputs_speaker=torch.tensor([0], device="cuda").long(),
-        alpha=1.0
-    )
-    print("Compiled model!")
+    # dummy_output = generator(
+    #     inputs_ling=torch.ones(1, 100, device="cuda").long(),
+    #     inputs_style_embedding=torch.rand(1, 768, device="cuda"),
+    #     input_lengths=torch.tensor([100], device="cuda").long(),
+    #     inputs_content_embedding=torch.rand(1, 768, device="cuda"),
+    #     inputs_speaker=torch.tensor([0], device="cuda").long(),
+    #     alpha=1.0
+    # )
+    # print("Compiled model!")
 
     tokenizer = AutoTokenizer.from_pretrained(config.bert_path)
 
@@ -172,7 +172,7 @@ def emotivoice_tts(text, prompt, content, speaker, models):
             inputs_speaker=speaker,
             alpha=1.0
         )
-        print(f"Time taken for generator inference: {time.time() - start_time:.4f} seconds")
+        # print(f"Time taken for Jets inference: {time.time() - start_time:.4f} seconds")
 
     start_time = time.time()
     audio = infer_output["wav_predictions"].squeeze() * MAX_WAV_VALUE
@@ -202,7 +202,7 @@ def get_audio(input_text):
 
     start_time = time.time()
     np_audio = emotivoice_tts(phonemized_text, '', input_text, '1088', models)
-    print('emotivoice_tts took', time.time() - start_time)
+    # print('emotivoice_tts took', time.time() - start_time)
     # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
     # prof.export_chrome_trace("trace.json")
 
