@@ -99,7 +99,7 @@ class PromptTTS(nn.Module):
 
         initialize(self, "xavier_uniform")
 
-    @torch.compile
+    # @torch.compile
     def forward(self, inputs_ling, input_lengths, inputs_speaker, inputs_style_embedding , inputs_content_embedding, alpha=1.0):
         
         B = inputs_ling.size(0)
