@@ -8,9 +8,6 @@ import torch
 import glob
 import uuid
 
-from fastapi import FastAPI, Response
-from pydantic import BaseModel
-
 from frontend import g2p_cn_en, ROOT_DIR, read_lexicon, G2p
 from models.prompt_tts_modified.jets import JETSGenerator
 from models.prompt_tts_modified.simbert import StyleEncoder
@@ -97,7 +94,7 @@ def get_models():
         inputs_speaker=torch.tensor([0], device="cuda").long(),
         alpha=1.0
     )
-    print("Compiled model!")      
+    print("Compiled model!")
 
     tokenizer = AutoTokenizer.from_pretrained(config.bert_path)
 
@@ -210,7 +207,7 @@ def get_audio(input_text):
     print('emotivoice_tts took', time.time() - start_time)
     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
     prof.export_chrome_trace("trace.json")
-    
+
     return np_audio
 
 get_audio('asdfasd mad发多少l')
