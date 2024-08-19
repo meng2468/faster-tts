@@ -43,7 +43,9 @@ class JETSGenerator(nn.Module):
 
     def forward(self, inputs_ling, input_lengths, inputs_speaker, inputs_style_embedding, inputs_content_embedding, alpha=1.0, cut_flag=True):
 
+        start_time = time.time()
         outputs = self.am(inputs_ling, input_lengths, inputs_speaker, inputs_style_embedding, inputs_content_embedding, alpha)
+        print(f"PromptTTS execution time: {time.time() - start_time:.4f} seconds")
         
         z_segments = outputs["dec_outputs"].transpose(1,2)
         z_start_idxs=None
@@ -55,7 +57,7 @@ class JETSGenerator(nn.Module):
 
         start_time = time.time()
         wav = self.generator(z_segments)
-        print(f"HifiGane execution time: {time.time() - start_time:.4f} seconds")
+        print(f"HifiGan execution time: {time.time() - start_time:.4f} seconds")
 
         wav = wav[...,:256*seq_len]
 
