@@ -1,4 +1,5 @@
 *.wav
 outputs/
 WangZeJun/
+__pycache__/
 *.pyc
