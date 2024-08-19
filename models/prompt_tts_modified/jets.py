@@ -49,7 +49,15 @@ class JETSGenerator(nn.Module):
         z_start_idxs=None
         segment_size=self.segment_size
 
+        seq_len = z_segments.shape[-1]
+        if seq_len < 500:
+            z_segments = nn.functional.pad(z_segments, pad=(0, 500 - seq_len))
+
+        start_time = time.time()
         wav = self.generator(z_segments)
+        print(f"HifiGane execution time: {time.time() - start_time:.4f} seconds")
+
+        wav = wav[...,:256*seq_len]
 
         outputs["wav_predictions"] = wav
         outputs["z_start_idxs"]= z_start_idxs
