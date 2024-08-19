@@ -63,7 +63,7 @@ class JETSGenerator(nn.Module):
         wav = self.generator(z_segments)
         print(f"HifiGan execution time: {time.time() - start_time:.4f} seconds")
 
-        wav = wav[...,:256*seq_len - 256*10]
+        wav = wav[...,:256*seq_len - 256*8]
 
         outputs["wav_predictions"] = wav
         outputs["z_start_idxs"]= z_start_idxs
